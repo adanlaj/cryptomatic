@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cryptomatic</title>
+    <link rel="stylesheet" href="styles.css?v=20260709-17">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span class="brand-ring"></span>
+            <span class="brand-core">C</span>
+          </div>
+          <h1>Cryptomatic</h1>
+        </div>
+        <div class="top-stats" aria-label="Game money">
+          <div>
+            <span class="stat-label">Cash</span>
+            <strong id="totalScore">$0</strong>
+          </div>
+          <div>
+            <span class="stat-label">Streak</span>
+            <strong id="topStreak">0</strong>
+          </div>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="panel workbench-panel" aria-labelledby="toolTitle">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Workbench</p>
+              <h2 id="toolTitle">Cipher Tool</h2>
+            </div>
+            <div class="icon-row">
+              <button class="tool-button" id="sampleButton" type="button">Sample</button>
+              <button class="tool-button" id="clearButton" type="button">Clear</button>
+            </div>
+          </div>
+
+          <div class="controls-grid">
+            <label class="control">
+              <span>Method</span>
+              <select id="cipherSelect">
+                <option value="caesar">Caesar Shift</option>
+                <option value="vigenere">Vigenere</option>
+                <option value="atbash">Atbash</option>
+                <option value="rail">Rail Fence</option>
+              </select>
+            </label>
+
+            <fieldset class="segmented" aria-label="Cipher mode">
+              <legend>Mode</legend>
+              <label>
+                <input type="radio" name="toolMode" value="encode" checked>
+                <span>Encode</span>
+              </label>
+              <label>
+                <input type="radio" name="toolMode" value="decode">
+                <span>Decode</span>
+              </label>
+            </fieldset>
+
+            <label class="control cipher-option option-caesar">
+              <span>Shift</span>
+              <input id="shiftInput" type="number" min="0" max="25" value="3" inputmode="numeric">
+            </label>
+
+            <label class="control cipher-option option-vigenere is-hidden">
+              <span>Key</span>
+              <input id="keyInput" type="text" value="ORBIT" autocomplete="off" spellcheck="false">
+            </label>
+
+            <div class="control cipher-option option-rail is-hidden">
+              <span id="railControlLabel">Rails</span>
+              <div class="rail-stepper" role="group" aria-labelledby="railControlLabel">
+                <button class="stepper-button" id="railDecreaseButton" type="button" aria-label="Decrease rails">-</button>
+                <input id="railInput" type="number" min="2" max="8" value="3" inputmode="numeric" aria-labelledby="railControlLabel">
+                <button class="stepper-button" id="railIncreaseButton" type="button" aria-label="Increase rails">+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-grid">
+            <label class="text-box">
+              <span>Input</span>
+              <textarea id="inputText" rows="9" spellcheck="false">MEET AT THE CLOCK TOWER AT NINE</textarea>
+            </label>
+            <label class="text-box">
+              <span>Output</span>
+              <textarea id="outputText" rows="9" readonly spellcheck="false"></textarea>
+            </label>
+          </div>
+
+          <div class="action-row">
+            <button id="swapButton" class="button secondary" type="button">Swap</button>
+            <button id="copyButton" class="button secondary" type="button">Copy</button>
+            <button id="loadGameButton" class="button primary" type="button">Load Mission</button>
+            <button id="answerFromOutputButton" class="button secondary" type="button">Use Answer</button>
+            <label class="auto-load-toggle">
+              <input id="autoLoadInput" type="checkbox">
+              <span>Auto Load</span>
+            </label>
+          </div>
+
+          <div class="assist-panel assist-caesar" id="caesarAssist" aria-label="Caesar shift helper">
+            <div class="visual-title">
+              <span>Caesar Alphabet</span>
+              <strong id="caesarShiftLabel">Shift 3</strong>
+            </div>
+            <input class="sr-only" id="caesarShiftSlider" type="range" min="0" max="25" value="3" aria-label="Caesar shift">
+            <div class="caesar-wheel" id="caesarWheel">
+              <div class="caesar-wheel-row" id="caesarTopAlphabet" aria-label="Plain alphabet"></div>
+              <div class="caesar-wheel-row caesar-wheel-bottom" id="caesarBottomAlphabet" role="slider" tabindex="0" aria-label="Shifted alphabet" aria-valuemin="0" aria-valuemax="25" aria-valuenow="3"></div>
+            </div>
+            <div class="caesar-wheel-actions">
+              <button id="caesarDecodeButton" class="button secondary" type="button">Decode</button>
+            </div>
+            <div class="assist-preview" id="caesarPreview"></div>
+          </div>
+
+          <div class="assist-panel assist-vigenere is-hidden" id="vigenereAssist" aria-label="Vigenere key helper">
+            <div class="visual-title">
+              <span>Vigenere Key</span>
+              <strong id="vigenereKeyLabel">ORBIT</strong>
+            </div>
+            <div class="vigenere-toolbar">
+              <label class="mini-control">
+                <span>Length</span>
+                <input id="keyLengthInput" type="number" min="1" max="12" value="5" inputmode="numeric">
+              </label>
+              <button id="keyAllAButton" class="button secondary" type="button">All A</button>
+            </div>
+            <div class="key-builder" id="keyBuilder"></div>
+            <div class="key-stream" id="keyStream" aria-label="Vigenere decrypt stream"></div>
+            <div class="assist-preview" id="vigenerePreview"></div>
+          </div>
+
+          <div class="assist-panel assist-rail is-hidden" id="railAssist" aria-label="Rail fence helper">
+            <div class="visual-title">
+              <span>Rail Fence</span>
+              <strong id="railLabel">3 rails</strong>
+            </div>
+            <div class="rail-board" id="railBoard"></div>
+            <div class="rail-readout" id="railReadout"></div>
+          </div>
+
+          <div class="distance-panel" aria-label="Encrypted letter distances">
+            <div class="visual-title">
+              <span>Ciphertext Distances</span>
+              <strong id="distanceLabel">0 gaps</strong>
+            </div>
+            <div class="distance-summary" id="distanceSummary">Distances update from the encrypted mission text.</div>
+            <div class="distance-strip" id="distanceStrip"></div>
+          </div>
+
+          <div class="frequency-panel" aria-label="Letter frequency">
+            <div class="visual-title">
+              <span>Frequency</span>
+              <strong id="letterCount">0 letters</strong>
+            </div>
+            <div class="frequency-grid" id="frequencyGrid"></div>
+          </div>
+
+          <div class="scratch-panel" aria-label="Solving scratchpad">
+            <div class="visual-title">
+              <span>Solve Pad</span>
+              <strong id="scratchLockCount">0 locked</strong>
+            </div>
+            <div class="scratch-toolbar">
+              <button id="scratchFillButton" class="button secondary" type="button">Fill Output</button>
+              <button id="scratchClearButton" class="button secondary" type="button">Clear</button>
+            </div>
+            <div class="scratch-grid" id="scratchGrid"></div>
+            <label class="scratch-notes">
+              <span>Notes</span>
+              <textarea id="scratchNotes" rows="4" spellcheck="false"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <section class="panel game-panel" aria-labelledby="gameTitle">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Game</p>
+              <h2 id="gameTitle">Mission Board</h2>
+            </div>
+            <div class="game-controls">
+              <fieldset class="segmented compact" aria-label="Difficulty">
+                <legend>Difficulty</legend>
+                <label>
+                  <input type="radio" name="difficulty" value="easy">
+                  <span>Easy</span>
+                </label>
+                <label>
+                  <input type="radio" name="difficulty" value="standard" checked>
+                  <span>Std</span>
+                </label>
+                <label>
+                  <input type="radio" name="difficulty" value="expert">
+                  <span>Expert</span>
+                </label>
+                <label>
+                  <input type="radio" name="difficulty" value="career">
+                  <span>Career</span>
+                </label>
+              </fieldset>
+              <label class="timer-toggle" id="timerControl">
+                <input id="timerInput" type="checkbox">
+                <span>Timer</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="mission-inspector" aria-label="Mission inspector">
+            <div class="visual-title">
+              <span>Inspector</span>
+              <strong id="missionProfile">0 letters</strong>
+            </div>
+            <div class="mission-bars" id="missionBars"></div>
+            <div class="mission-patterns" id="missionPatterns"></div>
+          </div>
+
+          <div class="mission-meta" aria-label="Mission statistics">
+            <div>
+              <span class="stat-label">Clock</span>
+              <strong id="missionClock">90</strong>
+            </div>
+            <div>
+              <span class="stat-label">Hints</span>
+              <strong id="hintCount">0</strong>
+            </div>
+            <div>
+              <span class="stat-label">Round</span>
+              <strong id="roundCount">1</strong>
+            </div>
+            <div>
+              <span class="stat-label">Level</span>
+              <strong id="missionLevel">Std</strong>
+            </div>
+          </div>
+
+          <div class="encrypted-card">
+            <div class="visual-title">
+              <span>Encrypted</span>
+              <strong id="cipherBadge">Unknown</strong>
+            </div>
+            <p id="cipherText" class="cipher-text"></p>
+          </div>
+
+          <label class="answer-box">
+            <span>Plaintext</span>
+            <textarea id="answerInput" rows="4" autocomplete="off" spellcheck="false"></textarea>
+          </label>
+
+          <div class="action-row">
+            <button id="submitAnswerButton" class="button primary" type="button">Submit</button>
+            <button id="hintButton" class="button secondary" type="button">Hint</button>
+            <button id="buyTimeButton" class="button secondary" type="button">Buy Time</button>
+            <button id="newMissionButton" class="button secondary" type="button">New</button>
+          </div>
+
+          <p id="gameFeedback" class="feedback" aria-live="polite"></p>
+
+          <div class="history-panel" aria-label="Mission log">
+            <div class="visual-title">
+              <span>Log</span>
+              <strong id="solvedCount">0 solved</strong>
+            </div>
+            <ul id="missionHistory"></ul>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js?v=20260709-17"></script>
+  </body>
+</html>

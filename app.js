@@ -66,32 +66,35 @@ const phraseTemplates = [
   (theme) => `FOLLOW THE ${theme.places[2]} TO THE ${theme.places[3]}`
 ];
 
+function buildThemeKeys(theme) {
+  const rawWords = [
+    theme.theme,
+    ...theme.items,
+    ...theme.places,
+    ...theme.signals,
+    ...theme.roles
+  ];
+  const words = rawWords.flatMap((entry) => String(entry).split(/\s+/))
+    .map((word) => sanitizeKey(word))
+    .filter((word) => word.length >= 3 && word.length <= 9);
+  return Array.from(new Set(words));
+}
+
 const phrases = phraseThemes.flatMap((theme) => phraseTemplates.map((template) => ({
   theme: theme.theme,
-  plain: template(theme)
+  plain: template(theme),
+  keyOptions: buildThemeKeys(theme)
 })));
 
-const sampleTexts = phrases.slice(0, 4).map((phrase) => phrase.plain);
-
-const keys = [
-  "ORBIT", "LUMEN", "VECTOR", "CIPHER", "EMBER", "NOVA", "QUARTZ", "SIGNAL",
-  "BEACON", "ASTRAL", "MATRIX", "FALCON", "RIDDLE", "ANCHOR", "CANDLE", "COPPER",
-  "MONSOON", "PRISM", "SATURN", "RADIAL", "ZENITH", "MIRAGE", "HARBOR", "VELVET",
-  "BINARY", "CARBON", "DRAGON", "ECHOES", "FROST", "GALAXY", "HELIOS", "INDIGO",
-  "JASPER", "KERNEL", "LABYRINTH", "MEADOW", "NEBULA", "ONYX", "PARADOX", "QUORUM",
-  "RHYTHM", "SILVER", "TEMPO", "UMBRA", "VOYAGE", "WILLOW", "XENON", "YONDER",
-  "ZEPHYR", "APEX", "BRIDGE", "CIRCUIT", "DYNAMO", "EQUINOX", "FLINT", "GARNET",
-  "HORIZON", "IONIC", "JUNCTION", "KINGLET", "LATTICE", "MERIDIAN", "NIMBUS",
-  "OBSIDIAN", "PULSE", "QUASAR", "RELAY", "SEQUOIA", "TIDAL", "UPLINK", "VORTEX",
-  "WALNUT", "XYLEM", "YELLOW", "ZODIAC", "ATLAS", "BASIL", "CORAL", "DUSK",
-  "ELIXIR", "FORGE", "GILDED", "HALO", "IVORY", "JOURNEY", "KITE", "LUCENT",
-  "MOSAIC", "NICKEL", "OPAL", "PAPER", "QUILL", "RAVEN", "SUMMIT", "TALON",
-  "UNITY", "VERDANT", "WANDER", "YARROW", "ZIRCON"
-];
 const hintCosts = [75, 150, 250];
 const buyTimeCost = 45;
 const buyTimeSeconds = 45;
 const careerDifficulties = ["easy", "standard", "expert"];
+const difficultySettings = {
+  easy: { seconds: 180, base: 90, speedBonus: 130 },
+  standard: { seconds: 160, base: 170, speedBonus: 230 },
+  expert: { seconds: 190, base: 290, speedBonus: 360 }
+};
 const state = {
   mission: null,
   score: 0,
@@ -107,12 +110,6 @@ const state = {
   recentKeys: [],
   scratch: {
     cells: []
-  },
-  timerByDifficulty: {
-    easy: false,
-    standard: true,
-    expert: true,
-    career: true
   }
 };
 
@@ -144,30 +141,22 @@ const els = {
   railReadout: document.querySelector("#railReadout"),
   inputText: document.querySelector("#inputText"),
   outputText: document.querySelector("#outputText"),
-  sampleButton: document.querySelector("#sampleButton"),
   clearButton: document.querySelector("#clearButton"),
-  swapButton: document.querySelector("#swapButton"),
   copyButton: document.querySelector("#copyButton"),
-  loadGameButton: document.querySelector("#loadGameButton"),
-  answerFromOutputButton: document.querySelector("#answerFromOutputButton"),
-  autoLoadInput: document.querySelector("#autoLoadInput"),
   scratchGrid: document.querySelector("#scratchGrid"),
   scratchLockCount: document.querySelector("#scratchLockCount"),
   scratchFillButton: document.querySelector("#scratchFillButton"),
   scratchClearButton: document.querySelector("#scratchClearButton"),
   scratchNotes: document.querySelector("#scratchNotes"),
-  distanceLabel: document.querySelector("#distanceLabel"),
-  distanceSummary: document.querySelector("#distanceSummary"),
-  distanceStrip: document.querySelector("#distanceStrip"),
   frequencyGrid: document.querySelector("#frequencyGrid"),
   letterCount: document.querySelector("#letterCount"),
+  missionTheme: document.querySelector("#missionTheme"),
+  missionBrief: document.querySelector("#missionBrief"),
   missionProfile: document.querySelector("#missionProfile"),
   missionBars: document.querySelector("#missionBars"),
   missionPatterns: document.querySelector("#missionPatterns"),
   cipherText: document.querySelector("#cipherText"),
   answerInput: document.querySelector("#answerInput"),
-  timerControl: document.querySelector("#timerControl"),
-  timerInput: document.querySelector("#timerInput"),
   submitAnswerButton: document.querySelector("#submitAnswerButton"),
   hintButton: document.querySelector("#hintButton"),
   buyTimeButton: document.querySelector("#buyTimeButton"),
@@ -317,12 +306,8 @@ function getDifficulty() {
   return document.querySelector('input[name="difficulty"]:checked').value;
 }
 
-function isTimerEnabledForDifficulty(difficulty) {
-  return Boolean(state.timerByDifficulty[difficulty]);
-}
-
 function isMissionTimed() {
-  return Boolean(state.mission && state.mission.timed);
+  return Boolean(state.mission);
 }
 
 function setToolMode(mode) {
@@ -349,9 +334,9 @@ function updateTool() {
   const mode = getToolMode();
   els.outputText.value = transform(els.inputText.value, cipher, mode);
   renderFrequency(els.outputText.value || els.inputText.value);
-  renderDistanceTool();
   renderCipherAssist(cipher);
   renderScratchPad();
+  syncAnswerFromWorkbench();
 }
 
 function renderCipherAssist(cipher) {
@@ -627,44 +612,6 @@ function renderRailAssist() {
   });
 }
 
-function getDistanceSourceText() {
-  return state.mission?.encrypted || els.outputText.value || els.inputText.value || "";
-}
-
-function renderDistanceTool() {
-  const letters = getDistanceSourceText().toUpperCase().replace(/[^A-Z]/g, "");
-  const pairCount = Math.max(0, letters.length - 1);
-  els.distanceLabel.textContent = `${pairCount} ${pairCount === 1 ? "gap" : "gaps"}`;
-  els.distanceSummary.textContent = letters
-    ? `${letters.length} encrypted letters. Each chip shows the forward alphabet distance to the next letter.`
-    : "Load a mission or enter text to see letter distances.";
-  els.distanceStrip.innerHTML = "";
-
-  if (pairCount === 0) {
-    const empty = document.createElement("span");
-    empty.className = "distance-chip is-empty";
-    empty.textContent = "No letter pairs yet";
-    els.distanceStrip.appendChild(empty);
-    return;
-  }
-
-  Array.from({ length: Math.min(pairCount, 54) }).forEach((_, index) => {
-    const from = letters[index];
-    const to = letters[index + 1];
-    const forward = mod(alphabet.indexOf(to) - alphabet.indexOf(from), alphabet.length);
-    const backward = forward === 0 ? 0 : forward - alphabet.length;
-    const chip = document.createElement("span");
-    chip.className = "distance-chip";
-    chip.title = `${from} to ${to}: +${forward} forward, ${backward} backward`;
-    const pair = document.createElement("b");
-    pair.textContent = `${from}->${to}`;
-    const gap = document.createElement("small");
-    gap.textContent = `+${forward}`;
-    chip.append(pair, gap);
-    els.distanceStrip.appendChild(chip);
-  });
-}
-
 function renderFrequency(text) {
   const counts = Object.fromEntries(alphabet.split("").map((letter) => [letter, 0]));
   let total = 0;
@@ -816,14 +763,34 @@ function normalizeAnswer(text) {
   return text.toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().replace(/\s+/g, " ");
 }
 
+function compactLetters(text) {
+  return text.toUpperCase().replace(/[^A-Z]/g, "");
+}
+
+function syncAnswerFromWorkbench() {
+  if (!state.mission || getToolMode() !== "decode") return;
+  const missionCipher = compactLetters(state.mission.encrypted);
+  const workbenchInput = compactLetters(els.inputText.value);
+  const workbenchOutput = els.outputText.value.trim();
+  const outputLetters = compactLetters(workbenchOutput);
+  if (!missionCipher || workbenchInput !== missionCipher) return;
+  if (!outputLetters || outputLetters === missionCipher) return;
+  els.answerInput.value = workbenchOutput;
+}
+
 function randomItem(items) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-function randomKey() {
-  const available = keys.filter((key) => !state.recentKeys.includes(key));
-  const key = randomItem(available.length ? available : keys);
-  state.recentKeys.unshift(key);
+function randomThemeKey(phrase, difficulty) {
+  const minLength = difficulty === "expert" ? 5 : 3;
+  const maxLength = difficulty === "expert" ? 9 : 6;
+  const matching = phrase.keyOptions.filter((key) => key.length >= minLength && key.length <= maxLength);
+  const options = matching.length ? matching : (phrase.keyOptions.length ? phrase.keyOptions : ["KEY"]);
+  const available = options.filter((key) => !state.recentKeys.includes(`${phrase.theme}:${key}`));
+  const key = randomItem(available.length ? available : options);
+  const recentKey = `${phrase.theme}:${key}`;
+  state.recentKeys.unshift(recentKey);
   state.recentKeys = state.recentKeys.slice(0, 18);
   return key;
 }
@@ -842,58 +809,57 @@ function formatDifficulty(difficulty) {
   return "Expert";
 }
 
-function suggestVigenereKey(key) {
-  const length = key.length;
-  if (length <= 4) return `Try a short key. Check repeating shifts every ${length} letters.`;
-  if (length <= 6) return `Try a medium key. The shift pattern repeats every ${length} letters.`;
-  return `Try a longer key. Compare repeated letter distances every ${length} letters.`;
+function suggestVigenereKey(mission) {
+  const clues = mission.keyClues.join(", ");
+  return `The key is ${mission.key.length} letters and belongs to the ${mission.theme} case file. Try this clue set: ${clues}.`;
 }
 
 function buildMission() {
   const selectedDifficulty = getDifficulty();
   const difficulty = selectedDifficulty === "career" ? randomItem(careerDifficulties) : selectedDifficulty;
-  const timed = isTimerEnabledForDifficulty(selectedDifficulty);
   const phrase = randomItem(phrases);
+  const settings = difficultySettings[difficulty];
   const plain = phrase.plain;
   let cipher = "caesar";
   let encrypted = "";
   let shift = 0;
   let key = "";
   let rails = 3;
-  let seconds = 150;
+  let seconds = settings.seconds;
 
   if (difficulty === "easy") {
-    shift = 1 + Math.floor(Math.random() * 12);
+    shift = 1 + Math.floor(Math.random() * 6);
     encrypted = caesar(plain, shift, "encode");
-    seconds = timed ? 180 : null;
   } else if (difficulty === "standard") {
-    cipher = randomItem(["caesar", "vigenere", "atbash"]);
+    cipher = randomItem(["caesar", "vigenere", "atbash", "rail"]);
     if (cipher === "caesar") {
-      shift = 1 + Math.floor(Math.random() * 25);
+      shift = 7 + Math.floor(Math.random() * 12);
       encrypted = caesar(plain, shift, "encode");
     } else if (cipher === "vigenere") {
-      key = randomKey();
+      key = randomThemeKey(phrase, difficulty);
       encrypted = vigenere(plain, key, "encode");
+    } else if (cipher === "rail") {
+      rails = 2 + Math.floor(Math.random() * 2);
+      encrypted = railFenceEncode(plain, rails);
     } else {
       encrypted = atbash(plain);
     }
-    seconds = timed ? 150 : null;
   } else {
-    cipher = randomItem(["vigenere", "rail", "caesar"]);
+    cipher = randomItem(["vigenere", "rail"]);
     if (cipher === "vigenere") {
-      key = randomKey();
+      key = randomThemeKey(phrase, difficulty);
       encrypted = vigenere(plain, key, "encode");
-    } else if (cipher === "rail") {
-      rails = 3 + Math.floor(Math.random() * 3);
-      encrypted = railFenceEncode(plain, rails);
     } else {
-      shift = 13 + Math.floor(Math.random() * 13);
-      encrypted = caesar(plain, shift, "encode");
+      rails = 4 + Math.floor(Math.random() * 3);
+      encrypted = railFenceEncode(plain, rails);
     }
-    seconds = timed ? 120 : null;
   }
 
-  return { plain, encrypted, cipher, shift, key, rails, difficulty, selectedDifficulty, theme: phrase.theme, seconds, timed };
+  const keyClues = phrase.keyOptions.slice(0, 7);
+  if (key && !keyClues.includes(key)) {
+    keyClues[Math.max(0, keyClues.length - 1)] = key;
+  }
+  return { plain, encrypted, cipher, shift, key, keyClues, rails, difficulty, selectedDifficulty, theme: phrase.theme, seconds };
 }
 
 function cipherName(mission) {
@@ -904,34 +870,49 @@ function cipherName(mission) {
   return "Rail Fence";
 }
 
+function missionBrief(mission) {
+  if (state.hints === 0) {
+    return `Case file: ${mission.theme}. Faster clean solves pay more; after the deadline pays $0.`;
+  }
+  if (mission.cipher === "vigenere") {
+    return `Confirmed Vigenere. Use the workbench key row to test a repeating key and watch the Plain row change.`;
+  }
+  if (mission.cipher === "rail") {
+    return `Confirmed Rail Fence. Rebuild the zigzag rows, then read the message in the right order.`;
+  }
+  if (mission.cipher === "atbash") {
+    return `Confirmed Atbash. Reverse A-Z and look for familiar case words.`;
+  }
+  return `Confirmed Caesar. Slide the alphabet until the case words start to appear.`;
+}
+
 function startMission() {
   state.mission = buildMission();
   state.round += 1;
   state.hints = 0;
   state.expiring = false;
-  state.secondsLeft = state.mission.timed ? state.mission.seconds : null;
+  state.secondsLeft = state.mission.seconds;
   state.lastTick = performance.now();
   els.cipherText.textContent = state.mission.encrypted;
   els.answerInput.value = "";
   els.answerInput.focus();
   setFeedback("", "");
   renderMissionInspector();
-  renderDistanceTool();
   updateMissionUi();
-  if (els.autoLoadInput.checked) {
-    loadMissionIntoTool();
-    els.answerInput.focus();
-  }
+  loadMissionIntoTool();
+  els.answerInput.focus();
 }
 
 function updateMissionUi() {
-  els.missionClock.textContent = isMissionTimed() ? Math.max(0, Math.ceil(state.secondsLeft)) : "OFF";
+  els.missionClock.textContent = Math.max(0, Math.ceil(state.secondsLeft ?? 0));
   els.hintCount.textContent = `${state.hints}/3`;
   els.roundCount.textContent = state.round;
   els.missionLevel.textContent = state.mission ? formatDifficulty(state.mission.difficulty) : "Std";
   els.totalScore.textContent = formatMoney(state.score);
   els.topStreak.textContent = state.bestStreak;
   els.cipherBadge.textContent = state.hints > 0 ? cipherName(state.mission) : (state.mission?.theme || "Unknown");
+  els.missionTheme.textContent = state.mission?.theme || "Unknown";
+  els.missionBrief.textContent = state.mission ? missionBrief(state.mission) : "";
   els.solvedCount.textContent = `${state.history.length} solved`;
   const nextHintCost = getHintCost();
   els.hintButton.textContent = nextHintCost === null ? "Hints Used" : `Hint ${formatMoney(nextHintCost)}`;
@@ -946,9 +927,12 @@ function setFeedback(message, tone) {
 }
 
 function scoreMission() {
-  const base = state.mission.difficulty === "easy" ? 120 : state.mission.difficulty === "standard" ? 210 : 340;
-  const timeBonus = state.mission.timed ? Math.max(0, Math.ceil(state.secondsLeft / 3)) : 0;
-  return Math.max(50, base + timeBonus);
+  if (state.expiring || state.secondsLeft <= 0) return 0;
+  const settings = difficultySettings[state.mission.difficulty];
+  const speedRatio = Math.max(0, state.secondsLeft / state.mission.seconds);
+  const speedBonus = Math.round(settings.speedBonus * speedRatio);
+  const streakBonus = Math.min(75, state.streak * 15);
+  return settings.base + speedBonus + streakBonus;
 }
 
 function submitAnswer() {
@@ -968,7 +952,7 @@ function submitAnswer() {
 
   const points = scoreMission();
   state.score += points;
-  state.streak += 1;
+  state.streak = points > 0 ? state.streak + 1 : 0;
   state.bestStreak = Math.max(state.bestStreak, state.streak);
   state.history.unshift({
     cipher: cipherName(state.mission),
@@ -978,7 +962,7 @@ function submitAnswer() {
   });
   state.history = state.history.slice(0, 6);
   renderHistory();
-  setFeedback(`Contract paid. +${formatMoney(points)}`, "good");
+  setFeedback(points > 0 ? `Contract paid. +${formatMoney(points)}` : "Solved after deadline. $0 paid.", points > 0 ? "good" : "warn");
   updateMissionUi();
   window.setTimeout(startMission, 900);
 }
@@ -999,7 +983,7 @@ function useHint() {
     setFeedback(`${formatMoney(cost)} spent: ${cipherName(mission)}`, "warn");
   } else if (state.hints === 2) {
     if (mission.cipher === "caesar") setFeedback(`${formatMoney(cost)} spent: Shift ${mission.shift}`, "warn");
-    else if (mission.cipher === "vigenere") setFeedback(`${formatMoney(cost)} spent: ${suggestVigenereKey(mission.key)}`, "warn");
+    else if (mission.cipher === "vigenere") setFeedback(`${formatMoney(cost)} spent: ${suggestVigenereKey(mission)}`, "warn");
     else if (mission.cipher === "rail") setFeedback(`${formatMoney(cost)} spent: ${mission.rails} rails`, "warn");
     else setFeedback(`${formatMoney(cost)} spent: A maps to Z.`, "warn");
   } else {
@@ -1010,7 +994,7 @@ function useHint() {
 }
 
 function buyTime() {
-  if (!isMissionTimed() || state.score < buyTimeCost) return;
+  if (!isMissionTimed() || state.expiring || state.score < buyTimeCost) return;
   state.score -= buyTimeCost;
   state.secondsLeft += buyTimeSeconds;
   setFeedback(`${formatMoney(buyTimeCost)} spent: +${buyTimeSeconds} seconds`, "warn");
@@ -1021,13 +1005,8 @@ function expireMission() {
   if (!isMissionTimed() || state.expiring) return;
   state.expiring = true;
   state.streak = 0;
-  setFeedback(`Expired: ${state.mission.plain}`, "bad");
+  setFeedback("Deadline passed. Solve it for practice, but this contract pays $0.", "bad");
   updateMissionUi();
-  window.setTimeout(startMission, 1800);
-}
-
-function updateTimerControl() {
-  els.timerInput.checked = isTimerEnabledForDifficulty(getDifficulty());
 }
 
 function renderHistory() {
@@ -1111,11 +1090,6 @@ function loadMissionIntoTool() {
   updateTool();
 }
 
-function moveOutputToAnswer() {
-  els.answerInput.value = els.outputText.value;
-  els.answerInput.focus();
-}
-
 function wireSegmentedLabels() {
   document.querySelectorAll(".segmented label").forEach((label) => {
     label.addEventListener("click", () => {
@@ -1130,7 +1104,7 @@ function wireSegmentedLabels() {
 function runClock(now) {
   const elapsed = (now - state.lastTick) / 1000;
   state.lastTick = now;
-  if (isMissionTimed()) {
+  if (isMissionTimed() && !state.expiring) {
     state.secondsLeft -= elapsed;
     if (state.secondsLeft <= 0) {
       state.secondsLeft = 0;
@@ -1161,14 +1135,8 @@ function wireEvents() {
 
   document.querySelectorAll('input[name="difficulty"]').forEach((element) => {
     element.addEventListener("change", () => {
-      updateTimerControl();
       startMission();
     });
-  });
-
-  els.timerInput.addEventListener("change", () => {
-    state.timerByDifficulty[getDifficulty()] = els.timerInput.checked;
-    startMission();
   });
 
   els.railDecreaseButton.addEventListener("click", () => {
@@ -1257,8 +1225,6 @@ function wireEvents() {
     updateTool();
   });
 
-  els.answerFromOutputButton.addEventListener("click", moveOutputToAnswer);
-
   els.scratchGrid.addEventListener("input", (event) => {
     if (!event.target.matches(".scratch-guess")) return;
     const index = Number.parseInt(event.target.dataset.scratchIndex, 10);
@@ -1279,22 +1245,8 @@ function wireEvents() {
   els.scratchFillButton.addEventListener("click", fillScratchFromOutput);
   els.scratchClearButton.addEventListener("click", clearScratchPad);
 
-  els.sampleButton.addEventListener("click", () => {
-    els.inputText.value = randomItem(sampleTexts);
-    updateTool();
-  });
-
   els.clearButton.addEventListener("click", () => {
     els.inputText.value = "";
-    updateTool();
-  });
-
-  els.swapButton.addEventListener("click", () => {
-    const previousInput = els.inputText.value;
-    els.inputText.value = els.outputText.value;
-    els.outputText.value = previousInput;
-    const nextMode = getToolMode() === "encode" ? "decode" : "encode";
-    document.querySelector(`input[name="toolMode"][value="${nextMode}"]`).checked = true;
     updateTool();
   });
 
@@ -1311,13 +1263,6 @@ function wireEvents() {
     }
   });
 
-  els.loadGameButton.addEventListener("click", loadMissionIntoTool);
-  els.autoLoadInput.addEventListener("change", () => {
-    if (els.autoLoadInput.checked) {
-      loadMissionIntoTool();
-      els.answerInput.focus();
-    }
-  });
   els.submitAnswerButton.addEventListener("click", submitAnswer);
   els.hintButton.addEventListener("click", useHint);
   els.buyTimeButton.addEventListener("click", buyTime);
@@ -1331,7 +1276,6 @@ function wireEvents() {
 
 wireEvents();
 updateTool();
-updateTimerControl();
 syncRailButtons();
 startMission();
 requestAnimationFrame(runClock);

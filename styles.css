@@ -419,16 +419,13 @@ textarea {
 }
 
 .game-controls {
-  display: grid;
-  grid-template-columns: minmax(210px, 270px) auto;
-  gap: 8px;
+  display: flex;
   justify-content: end;
   align-items: center;
-  min-width: min(100%, 390px);
+  min-width: min(100%, 360px);
 }
 
-.timer-toggle,
-.auto-load-toggle {
+.timer-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -444,15 +441,13 @@ textarea {
   line-height: 1;
 }
 
-.timer-toggle input,
-.auto-load-toggle input {
+.timer-toggle input {
   width: 18px;
   height: 18px;
   accent-color: var(--green);
 }
 
-.timer-toggle span,
-.auto-load-toggle span {
+.timer-toggle span {
   white-space: nowrap;
 }
 
@@ -486,10 +481,11 @@ textarea {
   transform: none;
 }
 
-.distance-panel,
 .frequency-panel,
 .assist-panel,
 .scratch-panel,
+.tutorial-panel,
+.case-panel,
 .encrypted-card,
 .mission-inspector,
 .history-panel {
@@ -522,6 +518,32 @@ textarea {
   text-transform: none;
 }
 
+.tutorial-panel summary {
+  cursor: pointer;
+  color: var(--green);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tutorial-content {
+  display: grid;
+  gap: 8px;
+}
+
+.tutorial-content p,
+.case-brief {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.tutorial-content strong {
+  color: var(--ink);
+}
+
 .scratch-toolbar {
   display: flex;
   justify-content: flex-end;
@@ -531,8 +553,8 @@ textarea {
 
 .scratch-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 7px;
   max-height: 252px;
   overflow: auto;
   padding: 2px;
@@ -540,7 +562,7 @@ textarea {
 
 .scratch-cell {
   display: grid;
-  grid-template-rows: auto 34px 24px;
+  grid-template-rows: auto 40px 24px;
   gap: 4px;
   min-width: 0;
   padding: 6px;
@@ -555,7 +577,7 @@ textarea {
 }
 
 .scratch-cell.is-fixed {
-  grid-template-rows: auto 34px;
+  grid-template-rows: auto 40px;
   opacity: 0.68;
 }
 
@@ -573,14 +595,14 @@ textarea {
 .scratch-guess {
   width: 100%;
   min-width: 0;
-  min-height: 34px;
+  min-height: 40px;
   padding: 0 4px;
   border: 1px solid var(--line-strong);
   border-radius: 6px;
   background: #fcfdfb;
   color: var(--ink);
   font-family: var(--mono);
-  font-size: 1rem;
+  font-size: 0.82rem;
   font-weight: 900;
   line-height: 1;
   text-align: center;
@@ -595,7 +617,7 @@ textarea {
 .scratch-placeholder {
   display: grid;
   place-items: center;
-  min-height: 34px;
+  min-height: 40px;
   color: var(--muted);
   font-family: var(--mono);
   font-size: 1rem;
@@ -936,50 +958,6 @@ input.sr-only[type="range"] {
   font-weight: 850;
 }
 
-.distance-summary {
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 750;
-  line-height: 1.35;
-}
-
-.distance-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-  gap: 5px;
-}
-
-.distance-chip {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  place-items: center;
-  gap: 5px;
-  min-height: 34px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #ffffff;
-  font-family: var(--mono);
-  font-size: 0.74rem;
-  font-weight: 850;
-}
-
-.distance-chip b {
-  color: var(--ink);
-  font-size: 0.72rem;
-}
-
-.distance-chip small {
-  color: var(--green);
-  font-size: 0.78rem;
-  font-weight: 950;
-}
-
-.distance-chip.is-empty {
-  grid-template-columns: 1fr;
-  color: var(--muted);
-}
-
 .frequency-grid {
   display: grid;
   grid-template-columns: repeat(26, minmax(7px, 1fr));
@@ -1205,10 +1183,11 @@ input.sr-only[type="range"] {
 .panel,
 .top-stats > div,
 .mission-meta > div,
-.distance-panel,
 .frequency-panel,
 .assist-panel,
 .scratch-panel,
+.tutorial-panel,
+.case-panel,
 .encrypted-card,
 .mission-inspector,
 .history-panel {
@@ -1223,9 +1202,7 @@ textarea,
 .tool-button,
 .button.secondary,
 .timer-toggle,
-.auto-load-toggle,
 .stepper-button,
-.distance-chip,
 .caesar-letter,
 .stream-cell,
 .rail-cell.has-char,
@@ -1236,7 +1213,9 @@ textarea,
 .scratch-guess,
 .scratch-lock span,
 .cipher-text,
-.assist-preview {
+.assist-preview,
+.tutorial-panel,
+.case-panel {
   border-color: var(--line);
   background: #040a06;
   color: var(--ink);
@@ -1328,22 +1307,21 @@ input.scratch-guess:read-only {
 }
 
 .game-controls {
-  grid-template-columns: minmax(260px, 360px) auto;
-  min-width: min(100%, 460px);
+  min-width: min(100%, 360px);
 }
 
 .scratch-grid {
-  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
 }
 
 .scratch-cell {
-  grid-template-rows: auto 32px 16px;
-  padding: 5px;
+  grid-template-rows: auto 38px 18px;
+  padding: 6px;
 }
 
 .scratch-guess {
-  min-height: 32px;
-  font-size: 0.92rem;
+  min-height: 38px;
+  font-size: 0.82rem;
 }
 
 .scratch-lock span {

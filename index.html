@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cryptomatic</title>
-    <link rel="stylesheet" href="styles.css?v=20260709-17">
+    <link rel="stylesheet" href="styles.css?v=20260722-19">
   </head>
   <body>
     <div class="app-shell">
@@ -36,7 +36,6 @@
               <h2 id="toolTitle">Cipher Tool</h2>
             </div>
             <div class="icon-row">
-              <button class="tool-button" id="sampleButton" type="button">Sample</button>
               <button class="tool-button" id="clearButton" type="button">Clear</button>
             </div>
           </div>
@@ -96,14 +95,7 @@
           </div>
 
           <div class="action-row">
-            <button id="swapButton" class="button secondary" type="button">Swap</button>
             <button id="copyButton" class="button secondary" type="button">Copy</button>
-            <button id="loadGameButton" class="button primary" type="button">Load Mission</button>
-            <button id="answerFromOutputButton" class="button secondary" type="button">Use Answer</button>
-            <label class="auto-load-toggle">
-              <input id="autoLoadInput" type="checkbox">
-              <span>Auto Load</span>
-            </label>
           </div>
 
           <div class="assist-panel assist-caesar" id="caesarAssist" aria-label="Caesar shift helper">
@@ -146,15 +138,6 @@
             </div>
             <div class="rail-board" id="railBoard"></div>
             <div class="rail-readout" id="railReadout"></div>
-          </div>
-
-          <div class="distance-panel" aria-label="Encrypted letter distances">
-            <div class="visual-title">
-              <span>Ciphertext Distances</span>
-              <strong id="distanceLabel">0 gaps</strong>
-            </div>
-            <div class="distance-summary" id="distanceSummary">Distances update from the encrypted mission text.</div>
-            <div class="distance-strip" id="distanceStrip"></div>
           </div>
 
           <div class="frequency-panel" aria-label="Letter frequency">
@@ -208,11 +191,26 @@
                   <span>Career</span>
                 </label>
               </fieldset>
-              <label class="timer-toggle" id="timerControl">
-                <input id="timerInput" type="checkbox">
-                <span>Timer</span>
-              </label>
             </div>
+          </div>
+
+          <details class="tutorial-panel" open>
+            <summary>Field Manual</summary>
+            <div class="tutorial-content">
+              <p>You are taking timed codebreaking contracts. Beat the clock for a payout; after the deadline, the puzzle can still be solved for practice but pays $0.</p>
+              <p><strong>Caesar:</strong> slide the alphabet until common words appear. A single shift decodes every letter.</p>
+              <p><strong>Vigenere:</strong> test theme words as keys. The key repeats under the ciphertext, and each key letter creates its own Caesar shift.</p>
+              <p><strong>Atbash:</strong> reverse the alphabet. A becomes Z, B becomes Y, and the pattern continues inward.</p>
+              <p><strong>Rail Fence:</strong> arrange letters in zigzag rails, then read across or rebuild the rails to recover the message.</p>
+            </div>
+          </details>
+
+          <div class="case-panel" aria-label="Case lead">
+            <div class="visual-title">
+              <span>Case Lead</span>
+              <strong id="missionTheme">Unknown</strong>
+            </div>
+            <p id="missionBrief" class="case-brief"></p>
           </div>
 
           <div class="mission-inspector" aria-label="Mission inspector">
@@ -276,6 +274,6 @@
       </main>
     </div>
 
-    <script src="app.js?v=20260709-17"></script>
+    <script src="app.js?v=20260722-19"></script>
   </body>
 </html>

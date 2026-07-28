@@ -86,13 +86,13 @@ const phrases = phraseThemes.flatMap((theme) => phraseTemplates.map((template) =
   keyOptions: buildThemeKeys(theme)
 })));
 
-const hintCosts = [75, 150, 250];
+const hintCosts = [180, 420, 800];
 const buyTimeCost = 45;
 const buyTimeSeconds = 45;
 const careerDifficulties = ["easy", "standard", "expert"];
 const difficultySettings = {
-  easy: { seconds: 180, base: 90, speedBonus: 130 },
-  standard: { seconds: 160, base: 170, speedBonus: 230 },
+  easy: { seconds: 180, base: 35, speedBonus: 55 },
+  standard: { seconds: 160, base: 90, speedBonus: 125 },
   expert: { seconds: 190, base: 290, speedBonus: 360 }
 };
 const state = {
@@ -132,6 +132,11 @@ const els = {
   keyBuilder: document.querySelector("#keyBuilder"),
   keyStream: document.querySelector("#keyStream"),
   vigenerePreview: document.querySelector("#vigenerePreview"),
+  substitutionInput: document.querySelector("#substitutionInput"),
+  substitutionAssist: document.querySelector("#substitutionAssist"),
+  substitutionLabel: document.querySelector("#substitutionLabel"),
+  substitutionMap: document.querySelector("#substitutionMap"),
+  substitutionPreview: document.querySelector("#substitutionPreview"),
   railInput: document.querySelector("#railInput"),
   railDecreaseButton: document.querySelector("#railDecreaseButton"),
   railIncreaseButton: document.querySelector("#railIncreaseButton"),
@@ -213,6 +218,37 @@ function atbash(text) {
   }).join("");
 }
 
+function normalizeSubstitutionAlphabet(value) {
+  const unique = [];
+  sanitizeKey(value).split("").forEach((letter) => {
+    if (!unique.includes(letter)) unique.push(letter);
+  });
+  alphabet.split("").forEach((letter) => {
+    if (!unique.includes(letter)) unique.push(letter);
+  });
+  return unique.slice(0, alphabet.length).join("");
+}
+
+function substitution(text, cipherAlphabet, direction) {
+  const clean = normalizeSubstitutionAlphabet(cipherAlphabet);
+  return Array.from(text, (char) => {
+    const upper = char.toUpperCase();
+    if (!alphabet.includes(upper)) return char;
+    const index = direction === "decode" ? clean.indexOf(upper) : alphabet.indexOf(upper);
+    const mapped = direction === "decode" ? alphabet[index] : clean[index];
+    return char === upper ? mapped : mapped.toLowerCase();
+  }).join("");
+}
+
+function shuffledAlphabet() {
+  const letters = alphabet.split("");
+  for (let index = letters.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [letters[index], letters[swapIndex]] = [letters[swapIndex], letters[index]];
+  }
+  return letters.join("");
+}
+
 function sanitizeKey(key) {
   return key.toUpperCase().replace(/[^A-Z]/g, "");
 }
@@ -290,6 +326,9 @@ function transform(text, cipher, mode) {
     const key = getVigenereKey();
     return key ? vigenere(text, key, mode) : text;
   }
+  if (cipher === "substitution") {
+    return substitution(text, getSubstitutionAlphabet(), mode);
+  }
   if (cipher === "atbash") {
     return atbash(text);
   }
@@ -324,6 +363,7 @@ function updateOptions() {
   if (activeOption) activeOption.classList.remove("is-hidden");
   els.caesarAssist.classList.toggle("is-hidden", cipher !== "caesar");
   els.vigenereAssist.classList.toggle("is-hidden", cipher !== "vigenere");
+  els.substitutionAssist.classList.toggle("is-hidden", cipher !== "substitution");
   els.railAssist.classList.toggle("is-hidden", cipher !== "rail");
 }
 
@@ -333,15 +373,17 @@ function updateTool() {
   if (cipher === "vigenere") setVigenereKey(els.keyInput.value);
   const mode = getToolMode();
   els.outputText.value = transform(els.inputText.value, cipher, mode);
-  renderFrequency(els.outputText.value || els.inputText.value);
   renderCipherAssist(cipher);
   renderScratchPad();
+  applyScratchLocksToOutput();
+  renderFrequency(els.outputText.value || els.inputText.value);
   syncAnswerFromWorkbench();
 }
 
 function renderCipherAssist(cipher) {
   if (cipher === "caesar") renderCaesarAssist();
   if (cipher === "vigenere") renderVigenereAssist();
+  if (cipher === "substitution") renderSubstitutionAssist();
   if (cipher === "rail") renderRailAssist();
 }
 
@@ -351,6 +393,10 @@ function getCaesarShift() {
 
 function getVigenereKey() {
   return sanitizeKey(els.keyInput.value).slice(0, 12);
+}
+
+function getSubstitutionAlphabet() {
+  return normalizeSubstitutionAlphabet(els.substitutionInput.value);
 }
 
 function getRailCount() {
@@ -517,6 +563,26 @@ function renderVigenereStream(key) {
 
     els.keyStream.appendChild(row);
   });
+}
+
+function renderSubstitutionAssist() {
+  const cipherAlphabet = getSubstitutionAlphabet();
+  if (els.substitutionInput.value !== cipherAlphabet) els.substitutionInput.value = cipherAlphabet;
+  els.substitutionLabel.textContent = `${new Set(cipherAlphabet).size} letters`;
+  els.substitutionMap.innerHTML = "";
+
+  alphabet.split("").forEach((plain, index) => {
+    const cell = document.createElement("span");
+    cell.className = "substitution-cell";
+    const top = document.createElement("b");
+    top.textContent = plain;
+    const bottom = document.createElement("small");
+    bottom.textContent = cipherAlphabet[index];
+    cell.append(top, bottom);
+    els.substitutionMap.appendChild(cell);
+  });
+
+  els.substitutionPreview.textContent = substitution(els.inputText.value, cipherAlphabet, getToolMode()) || " ";
 }
 
 function getRailPattern(length, rails) {
@@ -722,6 +788,30 @@ function renderScratchPad() {
   updateScratchLockCount();
 }
 
+function applyScratchLocksToOutput() {
+  const chars = getScratchChars();
+  if (!chars.length) return;
+  syncScratchCells(chars);
+
+  const lockedValues = new Map();
+  state.scratch.cells.forEach((cell, index) => {
+    const source = chars[index]?.toUpperCase();
+    if (!source || !isScratchLetter(source) || !cell.locked || !cell.guess) return;
+    if (!lockedValues.has(source)) lockedValues.set(source, cell.guess.toUpperCase());
+  });
+
+  const outputChars = Array.from(els.outputText.value);
+  const merged = chars.map((char, index) => {
+    const lockedValue = lockedValues.get(char.toUpperCase());
+    if (isScratchLetter(char) && lockedValue) return lockedValue;
+    return outputChars[index] ?? char;
+  });
+
+  if (lockedValues.size) {
+    els.outputText.value = merged.join("");
+  }
+}
+
 function fillScratchFromOutput() {
   const chars = getScratchChars();
   syncScratchCells(chars);
@@ -795,6 +885,38 @@ function randomThemeKey(phrase, difficulty) {
   return key;
 }
 
+function buildSubstitutionClues(plain, encrypted, limit = 5) {
+  const preferredPlain = "ETAOINSHRDLUCM";
+  const pairs = [];
+  const seenCipher = new Set();
+  const letters = Array.from(plain.toUpperCase());
+  const cipherLetters = Array.from(encrypted.toUpperCase());
+
+  preferredPlain.split("").forEach((target) => {
+    letters.some((letter, index) => {
+      const cipher = cipherLetters[index];
+      if (letter !== target || !alphabet.includes(cipher) || seenCipher.has(cipher)) return false;
+      seenCipher.add(cipher);
+      pairs.push({ cipher, plain: letter });
+      return pairs.length >= limit;
+    });
+  });
+
+  letters.some((letter, index) => {
+    const cipher = cipherLetters[index];
+    if (!alphabet.includes(letter) || !alphabet.includes(cipher) || seenCipher.has(cipher)) return false;
+    seenCipher.add(cipher);
+    pairs.push({ cipher, plain: letter });
+    return pairs.length >= limit;
+  });
+
+  return pairs.slice(0, limit);
+}
+
+function formatSubstitutionClues(clues) {
+  return clues.map((clue) => `${clue.cipher}=${clue.plain}`).join(", ");
+}
+
 function formatMoney(value) {
   return `$${Math.max(0, value).toLocaleString()}`;
 }
@@ -809,9 +931,14 @@ function formatDifficulty(difficulty) {
   return "Expert";
 }
 
-function suggestVigenereKey(mission) {
-  const clues = mission.keyClues.join(", ");
-  return `The key is ${mission.key.length} letters and belongs to the ${mission.theme} case file. Try this clue set: ${clues}.`;
+function formatKeyLetters(key) {
+  return sanitizeKey(key).split("").join(" ");
+}
+
+function vigenereHint(mission) {
+  if (state.hints === 1) return "The code is encoded via Vigenere cipher.";
+  if (state.hints === 2) return `The Vigenere keyword has ${mission.key.length} letters.`;
+  return `Keyword letters: ${formatKeyLetters(mission.key)}.`;
 }
 
 function buildMission() {
@@ -825,15 +952,17 @@ function buildMission() {
   let shift = 0;
   let key = "";
   let rails = 3;
+  let substitutionAlphabet = "";
+  let substitutionClues = [];
   let seconds = settings.seconds;
 
   if (difficulty === "easy") {
-    shift = 1 + Math.floor(Math.random() * 6);
+    shift = 1 + Math.floor(Math.random() * 4);
     encrypted = caesar(plain, shift, "encode");
   } else if (difficulty === "standard") {
-    cipher = randomItem(["caesar", "vigenere", "atbash", "rail"]);
+    cipher = randomItem(["caesar", "vigenere", "atbash", "rail", "substitution"]);
     if (cipher === "caesar") {
-      shift = 7 + Math.floor(Math.random() * 12);
+      shift = 3 + Math.floor(Math.random() * 7);
       encrypted = caesar(plain, shift, "encode");
     } else if (cipher === "vigenere") {
       key = randomThemeKey(phrase, difficulty);
@@ -841,17 +970,25 @@ function buildMission() {
     } else if (cipher === "rail") {
       rails = 2 + Math.floor(Math.random() * 2);
       encrypted = railFenceEncode(plain, rails);
+    } else if (cipher === "substitution") {
+      substitutionAlphabet = shuffledAlphabet();
+      encrypted = substitution(plain, substitutionAlphabet, "encode");
+      substitutionClues = buildSubstitutionClues(plain, encrypted, 5);
     } else {
       encrypted = atbash(plain);
     }
   } else {
-    cipher = randomItem(["vigenere", "rail"]);
+    cipher = randomItem(["vigenere", "rail", "substitution"]);
     if (cipher === "vigenere") {
       key = randomThemeKey(phrase, difficulty);
       encrypted = vigenere(plain, key, "encode");
-    } else {
+    } else if (cipher === "rail") {
       rails = 4 + Math.floor(Math.random() * 3);
       encrypted = railFenceEncode(plain, rails);
+    } else {
+      substitutionAlphabet = shuffledAlphabet();
+      encrypted = substitution(plain, substitutionAlphabet, "encode");
+      substitutionClues = buildSubstitutionClues(plain, encrypted, 7);
     }
   }
 
@@ -859,31 +996,34 @@ function buildMission() {
   if (key && !keyClues.includes(key)) {
     keyClues[Math.max(0, keyClues.length - 1)] = key;
   }
-  return { plain, encrypted, cipher, shift, key, keyClues, rails, difficulty, selectedDifficulty, theme: phrase.theme, seconds };
+  const leadWord = key || randomItem(keyClues) || sanitizeKey(phrase.theme.split(/\s+/)[0]);
+  return { plain, encrypted, cipher, shift, key, keyClues, leadWord, rails, substitutionAlphabet, substitutionClues, difficulty, selectedDifficulty, theme: phrase.theme, seconds };
 }
 
 function cipherName(mission) {
   if (!mission) return "Unknown";
   if (mission.cipher === "caesar") return "Caesar";
   if (mission.cipher === "vigenere") return "Vigenere";
+  if (mission.cipher === "substitution") return "Substitution";
   if (mission.cipher === "atbash") return "Atbash";
   return "Rail Fence";
 }
 
 function missionBrief(mission) {
-  if (state.hints === 0) {
-    return `Case file: ${mission.theme}. Faster clean solves pay more; after the deadline pays $0.`;
-  }
+  const leadWord = mission.leadWord || mission.key || sanitizeKey(mission.theme.split(/\s+/)[0]);
   if (mission.cipher === "vigenere") {
-    return `Confirmed Vigenere. Use the workbench key row to test a repeating key and watch the Plain row change.`;
+    return `The ${mission.theme} file arrived with a witness note circling the case word ${leadWord}. That word kept turning up around the scene, so line it under the encoded message and let it repeat while you test the plain text. Faster clean solves pay more; after the deadline pays $0.`;
   }
   if (mission.cipher === "rail") {
-    return `Confirmed Rail Fence. Rebuild the zigzag rows, then read the message in the right order.`;
+    return `The ${mission.theme} file was found on a torn strip labeled ${leadWord}, with letters climbing and dropping across ${mission.rails} faint guide rails. Rebuild the zigzag shape first, then read the rows back into a cleaner message. Faster clean solves pay more; after the deadline pays $0.`;
   }
   if (mission.cipher === "atbash") {
-    return `Confirmed Atbash. Reverse A-Z and look for familiar case words.`;
+    return `The ${mission.theme} file was tucked behind a mirror beside a card marked ${leadWord}, with A and Z written on opposite corners of the frame. The note feels less shifted than flipped, so test the alphabet from both ends before chasing stranger patterns. Faster clean solves pay more; after the deadline pays $0.`;
   }
-  return `Confirmed Caesar. Slide the alphabet until the case words start to appear.`;
+  if (mission.cipher === "substitution") {
+    return `The ${mission.theme} file came with a smudged evidence card labeled ${leadWord} and a few recovered letter values: ${formatSubstitutionClues(mission.substitutionClues)}. Treat each value as cipher letter = plain letter, then use repeated letters and short words to fill the gaps. Faster clean solves pay more; after the deadline pays $0.`;
+  }
+  return `The ${mission.theme} file has the neat look of a message pushed through one steady alphabet offset, with ${leadWord} circled in the margin. A witness counted the same small number of steps on every letter, so the wheel should be your first lead. Faster clean solves pay more; after the deadline pays $0.`;
 }
 
 function startMission() {
@@ -905,7 +1045,7 @@ function startMission() {
 
 function updateMissionUi() {
   els.missionClock.textContent = Math.max(0, Math.ceil(state.secondsLeft ?? 0));
-  els.hintCount.textContent = `${state.hints}/3`;
+  els.hintCount.textContent = state.hints;
   els.roundCount.textContent = state.round;
   els.missionLevel.textContent = state.mission ? formatDifficulty(state.mission.difficulty) : "Std";
   els.totalScore.textContent = formatMoney(state.score);
@@ -980,15 +1120,21 @@ function useHint() {
   state.hints += 1;
   const mission = state.mission;
   if (state.hints === 1) {
-    setFeedback(`${formatMoney(cost)} spent: ${cipherName(mission)}`, "warn");
+    const message = mission.cipher === "vigenere" ? vigenereHint(mission) : cipherName(mission);
+    setFeedback(`${formatMoney(cost)} spent: ${message}`, "warn");
   } else if (state.hints === 2) {
     if (mission.cipher === "caesar") setFeedback(`${formatMoney(cost)} spent: Shift ${mission.shift}`, "warn");
-    else if (mission.cipher === "vigenere") setFeedback(`${formatMoney(cost)} spent: ${suggestVigenereKey(mission)}`, "warn");
+    else if (mission.cipher === "vigenere") setFeedback(`${formatMoney(cost)} spent: ${vigenereHint(mission)}`, "warn");
     else if (mission.cipher === "rail") setFeedback(`${formatMoney(cost)} spent: ${mission.rails} rails`, "warn");
+    else if (mission.cipher === "substitution") setFeedback(`${formatMoney(cost)} spent: Known values ${formatSubstitutionClues(mission.substitutionClues)}. Use each cipher letter as the left side and fill the matching plain letter.`, "warn");
     else setFeedback(`${formatMoney(cost)} spent: A maps to Z.`, "warn");
   } else {
-    const firstWord = mission.plain.split(" ")[0];
-    setFeedback(`${formatMoney(cost)} spent: ${firstWord[0]}${"•".repeat(Math.max(0, firstWord.length - 1))}`, "warn");
+    if (mission.cipher === "vigenere") {
+      setFeedback(`${formatMoney(cost)} spent: ${vigenereHint(mission)}`, "warn");
+    } else {
+      const firstWord = mission.plain.split(" ")[0];
+      setFeedback(`${formatMoney(cost)} spent: ${firstWord[0]}${"•".repeat(Math.max(0, firstWord.length - 1))}`, "warn");
+    }
   }
   updateMissionUi();
 }
@@ -1086,6 +1232,7 @@ function loadMissionIntoTool() {
   els.cipherSelect.value = "caesar";
   els.shiftInput.value = "";
   els.keyInput.value = "";
+  els.substitutionInput.value = "";
   els.railInput.value = "";
   updateTool();
 }
@@ -1122,6 +1269,7 @@ function wireEvents() {
     els.cipherSelect,
     els.shiftInput,
     els.keyInput,
+    els.substitutionInput,
     els.railInput,
     els.inputText
   ].forEach((element) => {
@@ -1239,7 +1387,7 @@ function wireEvents() {
     const index = Number.parseInt(event.target.dataset.scratchLockIndex, 10);
     if (!state.scratch.cells[index]) return;
     state.scratch.cells[index].locked = event.target.checked;
-    renderScratchPad();
+    updateTool();
   });
 
   els.scratchFillButton.addEventListener("click", fillScratchFromOutput);

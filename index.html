@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Cryptomatic</title>
-    <link rel="stylesheet" href="styles.css?v=20260722-19">
+    <link rel="stylesheet" href="styles.css?v=20260728-22">
   </head>
   <body>
     <div class="app-shell">
@@ -46,6 +46,7 @@
               <select id="cipherSelect">
                 <option value="caesar">Caesar Shift</option>
                 <option value="vigenere">Vigenere</option>
+                <option value="substitution">Substitution</option>
                 <option value="atbash">Atbash</option>
                 <option value="rail">Rail Fence</option>
               </select>
@@ -71,6 +72,11 @@
             <label class="control cipher-option option-vigenere is-hidden">
               <span>Key</span>
               <input id="keyInput" type="text" value="ORBIT" autocomplete="off" spellcheck="false">
+            </label>
+
+            <label class="control cipher-option option-substitution is-hidden">
+              <span>Cipher Alphabet</span>
+              <input id="substitutionInput" type="text" value="QWERTYUIOPASDFGHJKLZXCVBNM" maxlength="26" autocomplete="off" spellcheck="false">
             </label>
 
             <div class="control cipher-option option-rail is-hidden">
@@ -129,6 +135,15 @@
             <div class="key-builder" id="keyBuilder"></div>
             <div class="key-stream" id="keyStream" aria-label="Vigenere decrypt stream"></div>
             <div class="assist-preview" id="vigenerePreview"></div>
+          </div>
+
+          <div class="assist-panel assist-substitution is-hidden" id="substitutionAssist" aria-label="Substitution helper">
+            <div class="visual-title">
+              <span>Substitution Map</span>
+              <strong id="substitutionLabel">26 letters</strong>
+            </div>
+            <div class="substitution-map" id="substitutionMap"></div>
+            <div class="assist-preview" id="substitutionPreview"></div>
           </div>
 
           <div class="assist-panel assist-rail is-hidden" id="railAssist" aria-label="Rail fence helper">
@@ -199,7 +214,8 @@
             <div class="tutorial-content">
               <p>You are taking timed codebreaking contracts. Beat the clock for a payout; after the deadline, the puzzle can still be solved for practice but pays $0.</p>
               <p><strong>Caesar:</strong> slide the alphabet until common words appear. A single shift decodes every letter.</p>
-              <p><strong>Vigenere:</strong> test theme words as keys. The key repeats under the ciphertext, and each key letter creates its own Caesar shift.</p>
+              <p><strong>Vigenere:</strong> A Vigenere cipher hides a message by shifting each letter by a different amount based on a repeating keyword. It is like using several Caesar ciphers in a pattern instead of just one.</p>
+              <p><strong>Substitution:</strong> A substitution cipher replaces each plaintext letter with a different cipher letter. The same encrypted letter always stands for the same plaintext letter, so repeated letters, common words, and given letter values are the best way in.</p>
               <p><strong>Atbash:</strong> reverse the alphabet. A becomes Z, B becomes Y, and the pattern continues inward.</p>
               <p><strong>Rail Fence:</strong> arrange letters in zigzag rails, then read across or rebuild the rails to recover the message.</p>
             </div>
@@ -274,6 +290,6 @@
       </main>
     </div>
 
-    <script src="app.js?v=20260722-19"></script>
+    <script src="app.js?v=20260728-22"></script>
   </body>
 </html>

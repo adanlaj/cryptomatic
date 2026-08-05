@@ -87,8 +87,6 @@ const phrases = phraseThemes.flatMap((theme) => phraseTemplates.map((template) =
 })));
 
 const hintCosts = [180, 420, 800];
-const buyTimeCost = 45;
-const buyTimeSeconds = 45;
 const careerDifficulties = ["easy", "standard", "expert"];
 const difficultySettings = {
   easy: { seconds: 180, base: 35, speedBonus: 55 },
@@ -164,7 +162,6 @@ const els = {
   answerInput: document.querySelector("#answerInput"),
   submitAnswerButton: document.querySelector("#submitAnswerButton"),
   hintButton: document.querySelector("#hintButton"),
-  buyTimeButton: document.querySelector("#buyTimeButton"),
   newMissionButton: document.querySelector("#newMissionButton"),
   gameFeedback: document.querySelector("#gameFeedback"),
   missionClock: document.querySelector("#missionClock"),
@@ -399,6 +396,21 @@ function getSubstitutionAlphabet() {
   return normalizeSubstitutionAlphabet(els.substitutionInput.value);
 }
 
+function setSubstitutionAlphabetLetter(index, value) {
+  if (!Number.isInteger(index) || index < 0 || index >= alphabet.length) return false;
+  const replacement = sanitizeGuess(value);
+  if (!replacement) return false;
+  const letters = getSubstitutionAlphabet().split("");
+  const current = letters[index];
+  const duplicateIndex = letters.indexOf(replacement);
+  if (duplicateIndex !== -1 && duplicateIndex !== index) {
+    letters[duplicateIndex] = current;
+  }
+  letters[index] = replacement;
+  els.substitutionInput.value = letters.join("");
+  return true;
+}
+
 function getRailCount() {
   return optionalNumber(els.railInput.value, 2, 8);
 }
@@ -576,8 +588,15 @@ function renderSubstitutionAssist() {
     cell.className = "substitution-cell";
     const top = document.createElement("b");
     top.textContent = plain;
-    const bottom = document.createElement("small");
-    bottom.textContent = cipherAlphabet[index];
+    const bottom = document.createElement("input");
+    bottom.className = "substitution-value";
+    bottom.type = "text";
+    bottom.maxLength = 1;
+    bottom.autocomplete = "off";
+    bottom.spellcheck = false;
+    bottom.value = cipherAlphabet[index];
+    bottom.dataset.substitutionIndex = index;
+    bottom.setAttribute("aria-label", `Cipher letter for plaintext ${plain}`);
     cell.append(top, bottom);
     els.substitutionMap.appendChild(cell);
   });
@@ -1011,19 +1030,7 @@ function cipherName(mission) {
 
 function missionBrief(mission) {
   const leadWord = mission.leadWord || mission.key || sanitizeKey(mission.theme.split(/\s+/)[0]);
-  if (mission.cipher === "vigenere") {
-    return `The ${mission.theme} file arrived with a witness note circling the case word ${leadWord}. That word kept turning up around the scene, so line it under the encoded message and let it repeat while you test the plain text. Faster clean solves pay more; after the deadline pays $0.`;
-  }
-  if (mission.cipher === "rail") {
-    return `The ${mission.theme} file was found on a torn strip labeled ${leadWord}, with letters climbing and dropping across ${mission.rails} faint guide rails. Rebuild the zigzag shape first, then read the rows back into a cleaner message. Faster clean solves pay more; after the deadline pays $0.`;
-  }
-  if (mission.cipher === "atbash") {
-    return `The ${mission.theme} file was tucked behind a mirror beside a card marked ${leadWord}, with A and Z written on opposite corners of the frame. The note feels less shifted than flipped, so test the alphabet from both ends before chasing stranger patterns. Faster clean solves pay more; after the deadline pays $0.`;
-  }
-  if (mission.cipher === "substitution") {
-    return `The ${mission.theme} file came with a smudged evidence card labeled ${leadWord} and a few recovered letter values: ${formatSubstitutionClues(mission.substitutionClues)}. Treat each value as cipher letter = plain letter, then use repeated letters and short words to fill the gaps. Faster clean solves pay more; after the deadline pays $0.`;
-  }
-  return `The ${mission.theme} file has the neat look of a message pushed through one steady alphabet offset, with ${leadWord} circled in the margin. A witness counted the same small number of steps on every letter, so the wheel should be your first lead. Faster clean solves pay more; after the deadline pays $0.`;
+  return `The ${mission.theme} file was delivered in a battered case sleeve marked ${leadWord}. The note inside points to a hurried handoff, a missing detail, and a message that still needs careful reconstruction. Use the encrypted text, the inspector patterns, and any purchased hints to decide how the case opens. Faster clean solves pay more; after the deadline pays $0.`;
 }
 
 function startMission() {
@@ -1057,8 +1064,6 @@ function updateMissionUi() {
   const nextHintCost = getHintCost();
   els.hintButton.textContent = nextHintCost === null ? "Hints Used" : `Hint ${formatMoney(nextHintCost)}`;
   els.hintButton.disabled = nextHintCost === null;
-  els.buyTimeButton.textContent = `Buy Time ${formatMoney(buyTimeCost)}`;
-  els.buyTimeButton.disabled = !isMissionTimed() || state.score < buyTimeCost || state.expiring;
 }
 
 function setFeedback(message, tone) {
@@ -1136,14 +1141,6 @@ function useHint() {
       setFeedback(`${formatMoney(cost)} spent: ${firstWord[0]}${"•".repeat(Math.max(0, firstWord.length - 1))}`, "warn");
     }
   }
-  updateMissionUi();
-}
-
-function buyTime() {
-  if (!isMissionTimed() || state.expiring || state.score < buyTimeCost) return;
-  state.score -= buyTimeCost;
-  state.secondsLeft += buyTimeSeconds;
-  setFeedback(`${formatMoney(buyTimeCost)} spent: +${buyTimeSeconds} seconds`, "warn");
   updateMissionUi();
 }
 
@@ -1373,6 +1370,26 @@ function wireEvents() {
     updateTool();
   });
 
+  els.substitutionMap.addEventListener("input", (event) => {
+    if (!event.target.matches(".substitution-value")) return;
+    const index = Number.parseInt(event.target.dataset.substitutionIndex, 10);
+    if (!setSubstitutionAlphabetLetter(index, event.target.value)) {
+      updateTool();
+      return;
+    }
+    const nextIndex = Math.min(index + 1, alphabet.length - 1);
+    updateTool();
+    const nextInput = els.substitutionMap.querySelector(`[data-substitution-index="${nextIndex}"]`);
+    if (nextInput) {
+      nextInput.focus();
+      nextInput.select();
+    }
+  });
+
+  els.substitutionMap.addEventListener("focusin", (event) => {
+    if (event.target.matches(".substitution-value")) event.target.select();
+  });
+
   els.scratchGrid.addEventListener("input", (event) => {
     if (!event.target.matches(".scratch-guess")) return;
     const index = Number.parseInt(event.target.dataset.scratchIndex, 10);
@@ -1413,7 +1430,6 @@ function wireEvents() {
 
   els.submitAnswerButton.addEventListener("click", submitAnswer);
   els.hintButton.addEventListener("click", useHint);
-  els.buyTimeButton.addEventListener("click", buyTime);
   els.newMissionButton.addEventListener("click", startMission);
   els.answerInput.addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {

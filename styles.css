@@ -918,6 +918,28 @@ input.sr-only[type="range"] {
   font-weight: 900;
 }
 
+.substitution-value {
+  width: 26px;
+  height: 22px;
+  margin-top: 3px;
+  padding: 0;
+  border: 1px solid rgba(47, 95, 64, 0.8);
+  border-radius: 4px;
+  background: rgba(140, 255, 156, 0.12);
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.substitution-value:focus {
+  outline: 2px solid rgba(140, 255, 156, 0.55);
+  outline-offset: 1px;
+}
+
 .rail-board {
   display: grid;
   gap: 6px;
@@ -1258,6 +1280,11 @@ textarea {
   border-color: var(--line-strong);
 }
 
+input.substitution-value {
+  color: var(--green);
+  text-align: center;
+}
+
 .segmented {
   border-color: var(--line-strong);
   background: #040a06;
@@ -1284,6 +1311,7 @@ textarea {
 .rail-cell.is-read,
 .stream-plain .stream-cell,
 .substitution-cell,
+.substitution-value,
 .scratch-cell.is-locked,
 .scratch-guess:read-only {
   border-color: rgba(140, 255, 156, 0.64);
